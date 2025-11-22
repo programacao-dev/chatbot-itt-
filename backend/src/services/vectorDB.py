@@ -2,26 +2,25 @@ from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from dotenv import load_dotenv
 from pathlib import Path
 import os
 
-class VectorDB: 
+from ..config import Settings
 
-    def __init__(self): 
-        load_dotenv()
-        GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+class VectorDB: 
+    def __init__(self, settings: Settings): 
+        self.settings = settings
         self.embedder = GoogleGenerativeAIEmbeddings(
             model="models/gemini-embedding-001",
-            google_api_key=GOOGLE_API_KEY
+            google_api_key=settings.GOOGLE_API_KEY
         )
 
     def query(self, message : str):
 
-        if not os.path.exists("faiss_index"):
+        if not os.path.exists(self.settings.FAISS_INDEX_PATH):
             raise ValueError("O índice FAISS não foi encontrado. Certifique-se de que o índice foi criado e salvo corretamente.")
         
-        vectorstore = FAISS.load_local("faiss_index", self.embedder, allow_dangerous_deserialization=True)
+        vectorstore = FAISS.load_local(self.settings.FAISS_INDEX_PATH, self.embedder, allow_dangerous_deserialization=True)
 
         retriever = vectorstore.as_retriever(search_type="similarity_score_threshold", 
                                         search_kwargs={"score_threshold": 0.3, "k":4})
@@ -58,5 +57,5 @@ class VectorDB:
 
         vectorstore = FAISS.from_documents(split_docs, self.embedder)
 
-        vectorstore.save_local("faiss_index")
+        vectorstore.save_local(self.settings.FAISS_INDEX_PATH)
         

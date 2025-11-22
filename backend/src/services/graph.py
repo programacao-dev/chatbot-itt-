@@ -1,0 +1,85 @@
+from typing import TypedDict, Optional, List
+from langgraph.graph import StateGraph, START, END
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from .chains import get_triage_chain, get_rag_chain, TRIAGE_PROMPT
+from .vectorDB import VectorDB
+from ..config import Settings
+
+class AgentState(TypedDict, total=False):
+    question: str
+    triage: dict
+    answer: Optional[str]
+    citations: List[dict]
+    rag_success: bool
+    final_action: str
+
+class ITTGraph:
+    def __init__(self, settings: Settings, vector_db: VectorDB):
+        self.settings = settings
+        self.vector_db = vector_db
+        self.triage_chain = get_triage_chain(settings)
+        self.rag_chain = get_rag_chain(settings)
+        self.graph = self._build_graph()
+    
+    def _node_triage(self, state: AgentState) -> AgentState:
+        question = state["question"]
+        triage_result = self.triage_chain.invoke([
+            SystemMessage(content=TRIAGE_PROMPT),
+            HumanMessage(content=question)
+        ])
+        return {"triage": triage_result.model_dump()}
+
+    def _node_auto_resolve(self, state: AgentState) -> AgentState:
+        question = state["question"]
+        related_docs = self.vector_db.query(question)
+
+        if not related_docs:
+            return {"answer": "Não sei.", "citations": [], "rag_success": False}
+
+        llm_response = self.rag_chain.invoke({"input": question, "context": related_docs})
+        text = (llm_response or "").strip()
+
+        if text.rstrip(".!?") == "Não sei":
+            return {"answer": "Não sei.", "citations": [], "rag_success": False}
+
+        citations = [{"content": doc.page_content} for doc in related_docs]
+        return {"answer": text, "citations": citations, "rag_success": True}
+
+    def _node_request_info(self, state: AgentState) -> AgentState:
+        missing_fields = state["triage"].get("campos_faltantes", [])
+        details = ", ".join(missing_fields) if missing_fields else "mais detalhes sobre sua dúvida"
+        return {
+            "answer": f"Para te ajudar melhor, por favor, forneça {details}.",
+            "citations": [],
+            "final_action": "REQUEST_INFO"
+        }
+
+    def _decide_after_triage(self, state: AgentState) -> str:
+        decision = state["triage"]["decisao"].lower()
+        if decision == "auto_resolver":
+            return "auto_resolve"
+        return "request_info"
+
+    def _build_graph(self):
+        workflow = StateGraph(AgentState)
+        workflow.add_node("triage", self._node_triage)
+        workflow.add_node("auto_resolve", self._node_auto_resolve)
+        workflow.add_node("request_info", self._node_request_info)
+
+        workflow.add_edge(START, "triage")
+        workflow.add_conditional_edges("triage", self._decide_after_triage, {
+            "auto_resolve": "auto_resolve",
+            "request_info": "request_info"
+        })
+        workflow.add_edge("auto_resolve", END)
+        workflow.add_edge("request_info", END)
+
+        return workflow.compile()
+    
+    def invoke(self, question: str) -> dict:
+        result = self.graph.invoke({"question": question})
+        return {
+            "response": result.get("answer", ""),
+            "source_documents": [doc["content"] for doc in result.get("citations", [])]
+        }
