@@ -1,0 +1,12 @@
+langchain
+langchain-google-genai
+google-generativeai
+langchain_community
+faiss-cpu
+langchain_text_splitters
+pymupdf
+langgraph
+dotenv
+fastapi 
+uvicorn[standard]
+streamlit
