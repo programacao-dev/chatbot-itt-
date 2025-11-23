@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 interface ChatProps {
   idToken: string;
@@ -25,7 +26,6 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
     const perguntaTexto = pergunta;
     setPergunta("");
 
-    // Adiciona mensagem de loading
     const loadingMsg: Mensagem = {
       autor: "assistant",
       texto: "Analisando a pergunta, aguarde um momento..."
@@ -35,7 +35,6 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
 
     const resposta = await consultarBackend(perguntaTexto);
 
-    // Substitui a mensagem de loading pela resposta real
     setMensagens((m) =>
       m.map((msg) =>
         msg === loadingMsg ? { autor: "assistant", texto: resposta } : msg
@@ -66,7 +65,7 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
       const data = await res.json();
       return data.response ?? "Erro ao gerar resposta.";
     } catch (e) {
-    return "Erro de conexão com o servidor." + e;
+      return "Erro de conexão com o servidor." + e;
     }
   };
 
@@ -85,11 +84,29 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
           {mensagens.map((m, i) => (
             <div
               key={i}
-              style={{
-                ...(m.autor === "user" ? msgUser : msgAssistant)
-              }}
+              style={m.autor === "user" ? msgUser : msgAssistant}
             >
-              {m.texto}
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => (
+                    <p style={{ marginBottom: "8px", lineHeight: "1.6" }}>{children}</p>
+                  ),
+                  strong: ({ children }) => (
+                    <strong style={{ color: "#fff" }}>{children}</strong>
+                  ),
+                  em: ({ children }) => (
+                    <em style={{ opacity: 0.85 }}>{children}</em>
+                  ),
+                  ul: ({ children }) => (
+                    <ul style={{ marginLeft: "20px", marginBottom: "8px" }}>{children}</ul>
+                  ),
+                  li: ({ children }) => (
+                    <li style={{ marginBottom: "4px" }}>{children}</li>
+                  )
+                }}
+              >
+                {m.texto}
+              </ReactMarkdown>
             </div>
           ))}
         </div>
@@ -103,7 +120,11 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
             onKeyDown={(e) => e.key === "Enter" && enviarPergunta()}
             disabled={isLoading}
           />
-          <button style={{ ...sendBtn, opacity: isLoading ? 0.5 : 1 }} onClick={enviarPergunta} disabled={isLoading}>
+          <button
+            style={{ ...sendBtn, opacity: isLoading ? 0.5 : 1 }}
+            onClick={enviarPergunta}
+            disabled={isLoading}
+          >
             {isLoading ? "Processando..." : "Enviar"}
           </button>
         </div>
@@ -174,8 +195,6 @@ const chatBox = {
   gap: "14px",
 };
 
-/* BOLHAS */
-
 const msgUser = {
   alignSelf: "flex-end",
   background: "#3b82f6",
@@ -196,8 +215,6 @@ const msgAssistant = {
   fontSize: "15px",
   boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
 };
-
-/* INPUT */
 
 const inputArea = {
   display: "flex",
