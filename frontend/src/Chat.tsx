@@ -66,7 +66,7 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
       const data = await res.json();
       return data.response ?? "Erro ao gerar resposta.";
     } catch (e) {
-      return "Erro de conexão com o servidor.";
+    return "Erro de conexão com o servidor." + e;
     }
   };
 
