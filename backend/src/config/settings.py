@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     
     FRONTEND_DEV_URL: str = "http://localhost:5173" #"chatbot-itt.vercel.app"
-    FRONTEND_URL: str = "chatbot-itt.vercel.app"
+    FRONTEND_URL: str = "https://chatbot-itt.vercel.app"
     
     GOOGLE_API_KEY: str = ""
     
