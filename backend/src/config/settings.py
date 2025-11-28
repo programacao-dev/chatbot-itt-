@@ -17,3 +17,6 @@ class Settings(BaseSettings):
     
     FAISS_INDEX_PATH: str = "faiss_index"
     
+    GOOGLE_DRIVE_FOLDER_ID: str = "" # ID da pasta (fica na URL do navegador)
+    GOOGLE_CREDENTIALS_PATH: str = "credentials/service_account.json"
+    local_data_path: str = "data" # Onde salvar os arquivos temporariamente
