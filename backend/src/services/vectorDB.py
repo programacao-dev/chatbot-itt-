@@ -1,11 +1,14 @@
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.document_loaders import PyMuPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pathlib import Path
 import os
+import shutil
 
 from ..config import Settings
+from .google_drive import DriveService 
+
 
 class VectorDB: 
     def __init__(self, settings: Settings): 
@@ -34,9 +37,10 @@ class VectorDB:
         if not os.path.exists(parent_folder):
             raise ValueError(f"O diretório {parent_folder} não existe. Verifique o caminho e tente novamente.")
         
-        parent_folder = Path(__file__).parent / parent_folder
+        folder_path = Path(parent_folder)
+
         docs = []
-        for file_path in parent_folder.glob("*.pdf"):
+        for file_path in folder_path.glob("*.pdf"):
             try:
                 loader = PyMuPDFLoader(str(file_path))
                 docs.extend(loader.load())
@@ -46,7 +50,11 @@ class VectorDB:
                 print(f"Erro ao carregar arquivo {file_path.name}: {e}")
 
         print(f"Total de documentos carregados: {len(docs)}")
-
+        
+        if not docs:
+            print("Nenhum documento encontrado. O índice não será atualizado.")
+            return
+        
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
@@ -58,4 +66,33 @@ class VectorDB:
         vectorstore = FAISS.from_documents(split_docs, self.embedder)
 
         vectorstore.save_local(self.settings.FAISS_INDEX_PATH)
+
+
+    def refresh_knowledge_base(self):
+        """
+        Método Mestre: Baixa do Drive e recria o índice.
+        """
+        # 1. Configurar caminhos
+        # Vamos assumir que data/ fica na raiz do backend
+        base_path = Path(os.getcwd()) 
+        download_path = base_path / "data"
         
+        # 2. Limpar pasta data antiga para não acumular lixo
+        if download_path.exists():
+            shutil.rmtree(download_path)
+        os.makedirs(download_path)
+
+        # 3. Baixar arquivos do Drive
+        print("Iniciando download do Google Drive...")
+        drive_service = DriveService(
+            credentials_path=self.settings.GOOGLE_CREDENTIALS_PATH, # Vamos adicionar isso no settings
+            folder_id=self.settings.GOOGLE_DRIVE_FOLDER_ID,         # E isso também
+            download_path=str(download_path)
+        )
+        drive_service.download_files()
+
+        # 4. Recriar o índice apontando para a pasta data
+        print("Recriando índice vetorial...")
+        self.create_faiss_index(str(download_path))
+        
+        return {"status": "success", "message": "Base de conhecimento atualizada com sucesso!"}

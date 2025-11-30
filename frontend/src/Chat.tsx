@@ -1,6 +1,13 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 
+// MUDANÇA IMPORTANTE:
+// Se estiver rodando localmente (backend na sua máquina), use localhost.
+// Se for subir para produção, você pode trocar aqui ou usar variável de ambiente.
+// Sugestão: Deixar localhost enquanto desenvolvemos.
+// const API_URL = "http://localhost:8000"; 
+const API_URL = "https://chatbot-itt-5lbt.onrender.com"; // URL antiga
+
 interface ChatProps {
   idToken: string;
   email: string;
@@ -16,6 +23,10 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [pergunta, setPergunta] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Estado para o botão de sincronização
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const enviarPergunta = async () => {
     if (!pergunta.trim() || isLoading) return;
@@ -46,7 +57,7 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
 
   const consultarBackend = async (texto: string): Promise<string> => {
     try {
-      const res = await fetch("https://chatbot-itt-5lbt.onrender.com/chat/query", {
+      const res = await fetch(`${API_URL}/chat/query`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,7 +76,34 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
       const data = await res.json();
       return data.response ?? "Erro ao gerar resposta.";
     } catch (e) {
-      return "Erro de conexão com o servidor." + e;
+      return "Erro de conexão com o servidor. " + e;
+    }
+  };
+
+  // --- NOVA FUNÇÃO: Sincronizar Google Drive ---
+  const sincronizarConhecimento = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    setSyncStatus('idle');
+
+    try {
+      const res = await fetch(`${API_URL}/admin/sync-knowledge`, {
+        method: 'POST'
+      });
+
+      if (!res.ok) throw new Error('Falha na sincronização');
+
+      setSyncStatus('success');
+      // Volta ao normal depois de 3 segundos
+      setTimeout(() => setSyncStatus('idle'), 3000);
+      
+    } catch (error) {
+      console.error(error);
+      setSyncStatus('error');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -77,7 +115,30 @@ export default function Chat({ idToken, email, onLogout }: ChatProps) {
             <h2 style={title}>Assistente ITT</h2>
             <span style={emailStyle}>{email}</span>
           </div>
-          <button onClick={onLogout} style={logoutBtn}>Sair</button>
+          
+          {/* GRUPO DE BOTÕES NO CABEÇALHO */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            
+            {/* --- NOVO BOTÃO DE SINCRONIZAÇÃO --- */}
+            <button 
+              onClick={sincronizarConhecimento} 
+              style={{
+                ...syncBtn,
+                background: syncStatus === 'error' ? '#ef4444' : 
+                           syncStatus === 'success' ? '#22c55e' : '#2563eb',
+                opacity: isSyncing ? 0.7 : 1,
+                cursor: isSyncing ? 'wait' : 'pointer'
+              }}
+              title="Atualizar base de conhecimento com arquivos do Google Drive"
+            >
+              {isSyncing ? '⏳ Atualizando...' : 
+               syncStatus === 'success' ? '✅ Docs Atualizados!' : 
+               syncStatus === 'error' ? '❌ Erro' : 
+               '🔄 Atualizar Docs'}
+            </button>
+
+            <button onClick={onLogout} style={logoutBtn}>Sair</button>
+          </div>
         </header>
 
         <div style={chatBox}>
@@ -184,6 +245,22 @@ const logoutBtn = {
   padding: "8px 12px",
   border: "none",
   cursor: "pointer",
+  fontWeight: 500,
+};
+
+// Estilo novo para o botão de sync
+const syncBtn = {
+  color: "white",
+  borderRadius: "8px",
+  padding: "8px 12px",
+  border: "none",
+  fontWeight: 500,
+  fontSize: "13px",
+  transition: "all 0.2s",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minWidth: "140px"
 };
 
 const chatBox = {

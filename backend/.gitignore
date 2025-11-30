@@ -218,3 +218,8 @@ __marimo__/
 ##############
 
 docs
+
+credentials/
+data/
+faiss_index/
+__pycache__/

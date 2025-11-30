@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import uvicorn
 
-from .routers import chat_router
+from .routers import chat_router, admin_router
 from .dependencies import get_settings
 
 settings = get_settings()
@@ -28,6 +28,7 @@ app.add_middleware(
 
 
 app.include_router(chat_router)
+app.include_router(admin_router)
 
 @app.get("/", tags=["root"])
 async def root():
