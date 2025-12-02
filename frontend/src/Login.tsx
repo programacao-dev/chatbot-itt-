@@ -1,64 +1,82 @@
-import { useEffect, useRef } from "react";
-
-declare global {
-  interface Window {
-    google: any;
-  }
-}
+import { useEffect } from "react";
 
 interface LoginProps {
   onLogin: (token: string, email: string) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const googleButton = useRef<HTMLDivElement>(null);
-
-  // Decodificador JWT simples (sem dependências)
-  const decodeJwt = (token: string) => {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(jsonPayload);
-  };
-
   useEffect(() => {
-    if (!window.google || !googleButton.current) return;
-
-    window.google.accounts.id.initialize({
-      client_id: "SEU_CLIENT_ID_DO_GCP.apps.googleusercontent.com",
+    /* @ts-ignore */
+    window.google?.accounts.id.initialize({
+      client_id: "961077150905-dsdb9plq43u7akdb4c77g3ai3ch1budm.apps.googleusercontent.com",
       callback: (response: any) => {
-        const token = response.credential;
-        const payload = decodeJwt(token);
-
-        onLogin(token, payload.email);
+        const cred = response.credential;
+        const payload = JSON.parse(atob(cred.split(".")[1]));
+        onLogin(cred, payload.email);
       },
     });
 
-    window.google.accounts.id.renderButton(googleButton.current, {
-      theme: "filled_blue",
+    /* @ts-ignore */
+    window.google?.accounts.id.renderButton(document.getElementById("googleBtn"), {
+      theme: "filled_black",
       size: "large",
       width: 300,
     });
   }, []);
 
   return (
-    <div style={containerStyle}>
-      <h1>Login com Google</h1>
-      <div ref={googleButton}></div>
+    <div style={page}>
+      <div style={card}>
+        <h1 style={title}>Acessar Assistente ITT</h1>
+        <p style={subtitle}>Faça login com sua conta Google institucional</p>
+
+        <div id="googleBtn" />
+
+        <footer style={footer}>
+          <small>Instituto Tadao Takahashi</small>
+        </footer>
+      </div>
     </div>
   );
 }
 
-const containerStyle = {
+/* ---------------- ESTILOS DARK MODE ---------------- */
+const page = {
+  background: "#0c0c0f",
   height: "100vh",
   display: "flex",
-  flexDirection: "column" as const,
   justifyContent: "center",
   alignItems: "center",
-  gap: "20px",
+  padding: "20px",
+  color: "#e5e7eb",
+};
+
+const card = {
+  background: "#1a1a1d",
+  padding: "40px",
+  width: "100%",
+  maxWidth: "420px",
+  borderRadius: "14px",
+  border: "1px solid #2a2a2d",
+  boxShadow: "0 0 20px rgba(0,0,0,0.4)",
+  display: "flex",
+  flexDirection: "column" as const,
+  gap: "25px",
+};
+
+const title = {
+  fontSize: "26px",
+  margin: 0,
+  fontWeight: "600",
+};
+
+const subtitle = {
+  opacity: 0.7,
+  marginBottom: "10px",
+};
+
+const footer = {
+  marginTop: "20px",
+  opacity: 0.4,
+  textAlign: "center" as const,
 };

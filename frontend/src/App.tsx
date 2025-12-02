@@ -5,57 +5,32 @@ import Chat from "./Chat";
 export default function App() {
   const [idToken, setIdToken] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [autorizado, setAutorizado] = useState<boolean>(false);
 
-  const handleLogin = (token: string, emailDoUsuario: string) => {
-    setEmail(emailDoUsuario);
-
-    // Verifica domínio permitido
-    const dominio = emailDoUsuario.split("@")[1];
-    const permitido = dominio === "institutotadao-itt.org.br";
-
-    setAutorizado(permitido);
-
-    if (permitido) {
-      setIdToken(token);
-    }
+  const handleLogin = (token: string, email: string) => {
+    setIdToken(token);
+    setEmail(email);
   };
 
-  const handleLogout = () => {
+  const logout = () => {
     setIdToken(null);
     setEmail(null);
-    setAutorizado(false);
   };
 
-  // Caso o usuário tente entrar com um domínio proibido
-  if (email && !autorizado) {
-    return (
-      <div style={erroStyle}>
-        <h2>Acesso negado</h2>
-        <p>
-          Esta aplicação só pode ser acessada por contas do domínio <b>@institutotadao-itt.org.br</b>.
-        </p>
-        <button onClick={handleLogout}>Voltar ao login</button>
-      </div>
-    );
-  }
-
   return (
-    <>
-      {idToken ? (
-        <Chat idToken={idToken} email={email!} onLogout={handleLogout} />
-      ) : (
+    <div style={appStyle}>
+      {!idToken || !email ? (
         <Login onLogin={handleLogin} />
+      ) : (
+        <Chat idToken={idToken} email={email} onLogout={logout} />
       )}
-    </>
+    </div>
   );
 }
 
-const erroStyle = {
-  height: "100vh",
-  display: "flex",
-  flexDirection: "column" as const,
-  justifyContent: "center",
-  alignItems: "center",
-  gap: "10px",
+/* Tema escuro global */
+
+const appStyle = {
+  background: "#0c0c0f",
+  minHeight: "100vh",
+  color: "#e5e7eb",
 };

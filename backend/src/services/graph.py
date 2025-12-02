@@ -28,7 +28,7 @@ class ITTGraph:
             SystemMessage(content=TRIAGE_PROMPT),
             HumanMessage(content=question)
         ])
-        return {"triage": triage_result.model_dump()}
+        return {"triage": triage_result.dict()}
 
     def _node_auto_resolve(self, state: AgentState) -> AgentState:
         question = state["question"]
@@ -63,12 +63,12 @@ class ITTGraph:
 
     def _build_graph(self):
         workflow = StateGraph(AgentState)
-        workflow.add_node("triage", self._node_triage)
+        workflow.add_node("triage_node", self._node_triage)
         workflow.add_node("auto_resolve", self._node_auto_resolve)
         workflow.add_node("request_info", self._node_request_info)
 
-        workflow.add_edge(START, "triage")
-        workflow.add_conditional_edges("triage", self._decide_after_triage, {
+        workflow.add_edge(START, "triage_node")
+        workflow.add_conditional_edges("triage_node", self._decide_after_triage, {
             "auto_resolve": "auto_resolve",
             "request_info": "request_info"
         })
